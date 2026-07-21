@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 900px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #f5f5f5;
+        }
+        .container { 
+            background: white; 
+            padding: 25px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        }
+        h1 { color: #333; margin-bottom: 25px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, textarea, select { 
+            width: 100%; 
+            padding: 8px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+            box-sizing: border-box;
+        }
+        textarea { height: 120px; resize: vertical; }
+        button { 
+            background-color: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin-right: 10px;
+        }
+        button:hover { background-color: #0056b3; }
+        button.delete { background-color: #dc3545; }
+        button.delete:hover { background-color: #c82333; }
+        .item-list { margin-top: 30px; }
+        .item { 
+            border: 1px solid #eee; 
+            padding: 15px; 
+            margin-bottom: 10px; 
+            border-radius: 4px;
+        }
+        .item-actions { margin-top: 10px; }
+        .status { padding: 2px 8px; border-radius: 3px; font-size: 0.9em; }
+        .status-draft { background-color: #fff3cd; color: #856404; }
+        .status-published { background-color: #d4edda; color: #155724; }
+        .error { color: red; margin: 10px 0; }
+        .success { color: green; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Админ-панель</h1>
+        
+        <!-- Форма для постов -->
+        <div class="form-section">
+            <h2>Управление записями</h2>
+            <form id="postForm">
+                <input type="hidden" id="postId">
+                <div class="form-group">
+                    <label for="postTitle">Заголовок:</label>
+                    <input type="text" id="postTitle" required>
+                </div>
+                <div class="form-group">
+                    <label for="postContent">Содержание:</label>
+                    <textarea id="postContent" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="postImage">URL изображения:</label>
+                    <input type="text" id="postImage">
+                </div>
+                <div class="form-group">
+                    <label for="postStatus">Статус:</label>
+                    <select id="postStatus" required>
+                        <option value="draft">Черновик</option>
+                        <option value="published">Опубликован</option>
+                    </select>
+                </div>
+                <button type="submit">Сохранить запись</button>
+                <button type="button" id="cancelPostBtn" style="display:none;">Отмена</button>
+            </form>
+            
+            <div id="postsList" class="item-list"></div>
+        </div>
+        
+        <!-- Форма для проектов -->
+        <div class="form-section" style="margin-top: 40px;">
+            <h2>Управление проектами</h2>
+            <form id="projectForm">
+                <input type="hidden" id="projectId">
+                <div class="form-group">
+                    <label for="projectName">Название:</label>
+                    <input type="text" id="projectName" required>
+                </div>
+                <div class="form-group">
+                    <label for="projectDescription">Описание:</label>
+                    <textarea id="projectDescription" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="projectTechstack">Технологии:</label>
+                    <input type="text" id="projectTechstack">
+                </div>
+                <div class="form-group">
+                    <label for="projectUrl">Ссылка на репозиторий:</label>
+                    <input type="url" id="projectUrl">
+                </div>
+                <div class="form-group">
+                    <label for="projectStatus">Статус:</label>
+                    <select id="projectStatus" required>
+                        <option value="draft">Черновик</option>
+                        <option value="published">Опубликован</option>
+                    </select>
+                </div>
+                <button type="submit">Сохранить проект</button>
+                <button type="button" id="cancelProjectBtn" style="display:none;">Отмена</button>
+            </form>
+            
+            <div id="projectsList" class="item-list"></div>
+        </div>
+        
+        <!-- Управление "О себе" -->
+        <div class="form-section" style="margin-top: 40px;">
+            <h2>Редактировать "О себе"</h2>
+            <form id="aboutForm">
+                <div class="form-group">
+                    <label for="aboutTitle">Заголовок:</label>
+                    <input type="text" id="aboutTitle">
+                </div>
+                <div class="form-group">
+                    <label for="aboutContent">Содержание:</label>
+                    <textarea id="aboutContent" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="aboutTechstack">Технологический стек:</label>
+                    <input type="text" id="aboutTechstack">
+                </div>
+                <button type="submit">Сохранить</button>
+            </form>
+        </div>
+        
+        <div id="message"></div>
+    </div>
+
+    <script>
+        const BASE_URL = 'https://my-website-backend-l1ou.onrender.com';
+        
+        // Авторизация
+        let authToken = localStorage.getItem('adminToken');
+        if (!authToken) {
+            authToken = prompt('Введите токен администратора:');
+            if (authToken) {
+                localStorage.setItem('adminToken', authToken);
+            } else {
+                alert('Доступ запрещен');
+                window.location.href = 'index.html';
+            }
+        }
+        
+        const headers = {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+        };
+        
+        // Загрузка данных
+        function loadPosts() {
+            fetch(`${BASE_URL}/posts`, { headers })
+                .then(response => response.json())
+                .then(data => {
+                    const posts = data._embedded?.posts || [];
+                    const container = document.getElementById('postsList');
+                    container.innerHTML = '<h3>Список записей</h3>';
+                    
+                    posts.forEach(post => {
+                        const div = document.createElement('div');
+                        div.className = 'item';
+                        div.innerHTML = `
+                            <h4>${post.title} <span class="status status-${post.status}">${post.status}</span></h4>
+                            <p>${post.content.substring(0, 100)}${post.content.length > 100 ? '...' : ''}</p>
+                            <small>Дата: ${new Date(post.createdAt).toLocaleString('ru-RU')}</small>
+                            <div class="item-actions">
+                                <button onclick="editPost('${post.id}')">Редактировать</button>
+                                <button class="delete" onclick="deletePost('${post.id}')">Удалить</button>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                })
+                .catch(showError);
+        }
+        
+        function loadProjects() {
+            fetch(`${BASE_URL}/projects`, { headers })
+                .then(response => response.json())
+                .then(data => {
+                    const projects = data._embedded?.projects || [];
+                    const container = document.getElementById('projectsList');
+                    container.innerHTML = '<h3>Список проектов</h3>';
+                    
+                    projects.forEach(project => {
+                        const div = document.createElement('div');
+                        div.className = 'item';
+                        div.innerHTML = `
+                            <h4>${project.name} <span class="status status-${project.status}">${project.status}</span></h4>
+                            <p>${project.description.substring(0, 100)}${project.description.length > 100 ? '...' : ''}</p>
+                            ${project.techstack ? `<p><strong>Технологии:</strong> ${project.techstack}</p>` : ''}
+                            <div class="item-actions">
+                                <button onclick="editProject('${project.id}')">Редактировать</button>
+                                <button class="delete" onclick="deleteProject('${project.id}')">Удалить</button>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                })
+                .catch(showError);
+        }
+        
+        function loadAbout() {
+            fetch(`${BASE_URL}/abouts`, { headers })
+                .then(response => response.json())
+                .then(data => {
+                    const about = data._embedded?.abouts?.[0];
+                    if (about) {
+                        document.getElementById('aboutTitle').value = about.title || '';
+                        document.getElementById('aboutContent').value = about.content || '';
+                        document.getElementById('aboutTechstack').value = about.techstack || '';
+                    }
+                })
+                .catch(showError);
+        }
+        
+        // Функции редактирования
+        function editPost(id) {
+            fetch(`${BASE_URL}/posts/${id}`, { headers })
+                .then(response => response.json())
+                .then(post => {
+                    document.getElementById('postId').value = post.id;
+                    document.getElementById('postTitle').value = post.title;
+                    document.getElementById('postContent').value = post.content;
+                    document.getElementById('postImage').value = post.image || '';
+                    document.getElementById('postStatus').value = post.status;
+                    document.querySelector('#cancelPostBtn').style.display = 'inline-block';
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                })
+                .catch(showError);
+        }
+        
+        function editProject(id) {
+            fetch(`${BASE_URL}/projects/${id}`, { headers })
+                .then(response => response.json())
+                .then(project => {
+                    document.getElementById('projectId').value = project.id;
+                    document.getElementById('projectName').value = project.name;
+                    document.getElementById('projectDescription').value = project.description;
+                    document.getElementById('projectTechstack').value = project.techstack || '';
+                    document.getElementById('projectUrl').value = project.url || '';
+                    document.getElementById('projectStatus').value = project.status;
+                    document.querySelector('#cancelProjectBtn').style.display = 'inline-block';
+                    window.scrollTo({ top: document.querySelector('.form-section:nth-child(2)').offsetTop, behavior: 'smooth' });
+                })
+                .catch(showError);
+        }
+        
+        // Функции удаления
+        function deletePost(id) {
+            if (confirm('Удалить эту запись?')) {
+                fetch(`${BASE_URL}/posts/${id}`, {
+                    method: 'DELETE',
+                    headers
+                })
+                .then(() => {
+                    showMessage('Запись удалена', 'success');
+                    loadPosts();
+                })
+                .catch(showError);
+            }
+        }
+        
+        function deleteProject(id) {
+            if (confirm('Удалить этот проект?')) {
+                fetch(`${BASE_URL}/projects/${id}`, {
+                    method: 'DELETE',
+                    headers
+                })
+                .then(() => {
+                    showMessage('Проект удален', 'success');
+                    loadProjects();
+                })
+                .catch(showError);
+            }
+        }
+        
+        // Отправка форм
+        document.getElementById('postForm').addEventListener('submit', e => {
+            e.preventDefault();
+            const formData = {
+                title: document.getElementById('postTitle').value,
+                content: document.getElementById('postContent').value,
+                image: document.getElementById('postImage').value || null,
+                status: document.getElementById('postStatus').value
+            };
+            
+            const id = document.getElementById('postId').value;
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `${BASE_URL}/posts/${id}` : `${BASE_URL}/posts`;
+            
+            fetch(url, {
+                method,
+                headers,
+                body: JSON.stringify(formData)
+            })
+            .then(response => {
+                if (response.ok) {
+                    showMessage(id ? 'Запись обновлена' : 'Запись создана', 'success');
+                    document.getElementById('postForm').reset();
+                    document.getElementById('postId').value = '';
+                    document.querySelector('#cancelPostBtn').style.display = 'none';
+                    loadPosts();
+                } else {
+                    throw new Error('Ошибка сохранения');
+                }
+            })
+            .catch(showError);
+        });
+        
+        document.getElementById('projectForm').addEventListener('submit', e => {
+            e.preventDefault();
+            const formData = {
+                name: document.getElementById('projectName').value,
+                description: document.getElementById('projectDescription').value,
+                techstack: document.getElementById('projectTechstack').value || null,
+                url: document.getElementById('projectUrl').value || null,
+                status: document.getElementById('projectStatus').value
+            };
+            
+            const id = document.getElementById('projectId').value;
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `${BASE_URL}/projects/${id}` : `${BASE_URL}/projects`;
+            
+            fetch(url, {
+                method,
+                headers,
+                body: JSON.stringify(formData)
+            })
+            .then(response => {
+                if (response.ok) {
+                    showMessage(id ? 'Проект обновлен' : 'Проект создан', 'success');
+                    document.getElementById('projectForm').reset();
+                    document.getElementById('projectId').value = '';
+                    document.querySelector('#cancelProjectBtn').style.display = 'none';
+                    loadProjects();
+                } else {
+                    throw new Error('Ошибка сохранения');
+                }
+            })
+            .catch(showError);
+        });
+        
+        document.getElementById('aboutForm').addEventListener('submit', e => {
+            e.preventDefault();
+            const formData = {
+                title: document.getElementById('aboutTitle').value || null,
+                content: document.getElementById('aboutContent').value,
+                techstack: document.getElementById('aboutTechstack').value || null
+            };
+            
+            fetch(`${BASE_URL}/abouts`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(formData)
+            })
+            .then(response => {
+                if (response.ok) {
+                    showMessage('Информация "О себе" обновлена', 'success');
+                } else {
+                    throw new Error('Ошибка сохранения');
+                }
+            })
+            .catch(showError);
+        });
+        
+        // Кнопки отмены
+        document.getElementById('cancelPostBtn').addEventListener('click', () => {
+            document.getElementById('postForm').reset();
+            document.getElementById('postId').value = '';
+            document.querySelector('#cancelPostBtn').style.display = 'none';
+        });
+        
+        document.getElementById('cancelProjectBtn').addEventListener('click', () => {
+            document.getElementById('projectForm').reset();
+            document.getElementById('projectId').value = '';
+            document.querySelector('#cancelProjectBtn').style.display = 'none';
+        });
+        
+        // Вспомогательные функции
+        function showMessage(text, type = 'error') {
+            const msgEl = document.getElementById('message');
+            msgEl.textContent = text;
+            msgEl.style.color = type === 'success' ? 'green' : 'red';
+            setTimeout(() => msgEl.textContent = '', 5000);
+        }
+        
+        function showError(error) {
+            console.error(error);
+            showMessage('Произошла ошибка. Проверьте консоль.');
+        }
+        
+        // Загрузка данных при старте
+        loadPosts();
+        loadProjects();
+        loadAbout();
+    </script>
+</body>
+</html>
