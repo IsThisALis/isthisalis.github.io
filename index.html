@@ -40,7 +40,7 @@
 
     <script>
         // Загружаем посты (без изменений)
-        fetch('/posts')
+        fetch('https://my-website-backend-l1ou.onrender.com/posts')
             .then(response => response.json())
             .then(data => {
                 const posts = data._embedded?.posts || [];
@@ -67,7 +67,7 @@
             });
 
         // Загружаем проекты (обновлено под новые поля)
-        fetch('/projects')
+        fetch('https://my-website-backend-l1ou.onrender.com/projects')
             .then(response => response.json())
             .then(data => {
                 const projects = data._embedded?.projects || [];
@@ -96,7 +96,7 @@
             });
 
         // Загружаем "О себе" (обновлено: title, content, techstack)
-        fetch('/abouts')
+        fetch('https://my-website-backend-l1ou.onrender.com/abouts')
             .then(response => response.json())
             .then(data => {
                 const abouts = data._embedded?.abouts?.[0] || data;
