@@ -130,6 +130,7 @@
         <div class="form-section" style="margin-top: 40px;">
             <h2>Редактировать "О себе"</h2>
             <form id="aboutForm">
+                <input type="hidden" id="aboutId">
                 <div class="form-group">
                     <label for="aboutTitle">Заголовок:</label>
                     <input type="text" id="aboutTitle">
@@ -152,26 +153,14 @@
     <script>
         const BASE_URL = 'https://my-website-backend-l1ou.onrender.com';
         
-        // Авторизация
-        let authToken = localStorage.getItem('adminToken');
-        if (!authToken) {
-            authToken = prompt('Введите токен администратора:');
-            if (authToken) {
-                localStorage.setItem('adminToken', authToken);
-            } else {
-                alert('Доступ запрещен');
-                window.location.href = 'index.html';
-            }
-        }
-        
+        // Убрана авторизация через токен, оставлены только Content-Type
         const headers = {
-            'Authorization': `Bearer ${authToken}`,
             'Content-Type': 'application/json'
         };
         
         // Загрузка данных
         function loadPosts() {
-            fetch(`${BASE_URL}/posts`, { headers })
+            fetch(`${BASE_URL}/posts`)
                 .then(response => response.json())
                 .then(data => {
                     const posts = data._embedded?.posts || [];
@@ -197,7 +186,7 @@
         }
         
         function loadProjects() {
-            fetch(`${BASE_URL}/projects`, { headers })
+            fetch(`${BASE_URL}/projects`)
                 .then(response => response.json())
                 .then(data => {
                     const projects = data._embedded?.projects || [];
@@ -223,11 +212,13 @@
         }
         
         function loadAbout() {
-            fetch(`${BASE_URL}/abouts`, { headers })
+            fetch(`${BASE_URL}/abouts`)
                 .then(response => response.json())
                 .then(data => {
-                    const about = data._embedded?.abouts?.[0];
+                    const abouts = data._embedded?.abouts || [];
+                    const about = abouts[0]; // Получаем первую (и предположительно единственную) запись
                     if (about) {
+                        document.getElementById('aboutId').value = about.id; // Сохраняем ID
                         document.getElementById('aboutTitle').value = about.title || '';
                         document.getElementById('aboutContent').value = about.content || '';
                         document.getElementById('aboutTechstack').value = about.techstack || '';
@@ -238,7 +229,7 @@
         
         // Функции редактирования
         function editPost(id) {
-            fetch(`${BASE_URL}/posts/${id}`, { headers })
+            fetch(`${BASE_URL}/posts/${id}`)
                 .then(response => response.json())
                 .then(post => {
                     document.getElementById('postId').value = post.id;
@@ -253,7 +244,7 @@
         }
         
         function editProject(id) {
-            fetch(`${BASE_URL}/projects/${id}`, { headers })
+            fetch(`${BASE_URL}/projects/${id}`)
                 .then(response => response.json())
                 .then(project => {
                     document.getElementById('projectId').value = project.id;
@@ -272,8 +263,7 @@
         function deletePost(id) {
             if (confirm('Удалить эту запись?')) {
                 fetch(`${BASE_URL}/posts/${id}`, {
-                    method: 'DELETE',
-                    headers
+                    method: 'DELETE'
                 })
                 .then(() => {
                     showMessage('Запись удалена', 'success');
@@ -286,8 +276,7 @@
         function deleteProject(id) {
             if (confirm('Удалить этот проект?')) {
                 fetch(`${BASE_URL}/projects/${id}`, {
-                    method: 'DELETE',
-                    headers
+                    method: 'DELETE'
                 })
                 .then(() => {
                     showMessage('Проект удален', 'success');
@@ -371,17 +360,37 @@
                 techstack: document.getElementById('aboutTechstack').value || null
             };
             
-            fetch(`${BASE_URL}/abouts`, {
-                method: 'POST',
+            const existingId = document.getElementById('aboutId').value;
+            let method, url;
+            
+            if (existingId) {
+                // Если ID существует, обновляем существующую запись
+                method = 'PUT';
+                url = `${BASE_URL}/abouts/${existingId}`;
+            } else {
+                // Если ID нет, создаем новую
+                method = 'POST';
+                url = `${BASE_URL}/abouts`;
+            }
+            
+            fetch(url, {
+                method,
                 headers,
                 body: JSON.stringify(formData)
             })
             .then(response => {
                 if (response.ok) {
-                    showMessage('Информация "О себе" обновлена', 'success');
+                    return response.json(); // Парсим ответ, чтобы получить ID новой записи
                 } else {
                     throw new Error('Ошибка сохранения');
                 }
+            })
+            .then(data => {
+                // После успешного создания/обновления сохраняем ID
+                if (data.id) {
+                    document.getElementById('aboutId').value = data.id;
+                }
+                showMessage('Информация "О себе" обновлена', 'success');
             })
             .catch(showError);
         });
