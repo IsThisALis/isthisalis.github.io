@@ -150,41 +150,8 @@
     <script>
         const BASE_URL = 'https://my-website-backend-l1ou.onrender.com';
         
-        let basicAuth = sessionStorage.getItem('adminBasic');
-        
-        async function fetchWithAuth(url, options = {}) {
-            const headers = new Headers(options.headers || {});
-            if (!headers.has('Content-Type') && options.body) {
-                headers.set('Content-Type', 'application/json');
-            }
-            if (basicAuth) {
-                headers.set('Authorization', basicAuth);
-            }
-            
-            let response = await fetch(url, { ...options, headers });
-            
-            if (response.status === 401) {
-                const username = prompt('Введите логин:');
-                const password = prompt('Введите пароль:');
-                if (username && password) {
-                    basicAuth = 'Basic ' + btoa(username + ':' + password);
-                    sessionStorage.setItem('adminBasic', basicAuth);
-                    headers.set('Authorization', basicAuth);
-                    response = await fetch(url, { ...options, headers });
-                } else {
-                    throw new Error('Аутентификация отменена');
-                }
-            }
-            
-            if (!response.ok && response.status !== 401) {
-                throw new Error(`Ошибка ${response.status}`);
-            }
-            
-            return response;
-        }
-        
         function loadPosts() {
-            fetchWithAuth(`${BASE_URL}/posts`)
+            fetch(`${BASE_URL}/posts`)
                 .then(response => response.json())
                 .then(data => {
                     const posts = data._embedded?.posts || [];
@@ -210,7 +177,7 @@
         }
         
         function loadProjects() {
-            fetchWithAuth(`${BASE_URL}/projects`)
+            fetch(`${BASE_URL}/projects`)
                 .then(response => response.json())
                 .then(data => {
                     const projects = data._embedded?.projects || [];
@@ -236,7 +203,7 @@
         }
         
         function loadAbout() {
-            fetchWithAuth(`${BASE_URL}/abouts`)
+            fetch(`${BASE_URL}/abouts`)
                 .then(response => response.json())
                 .then(data => {
                     const abouts = data._embedded?.abouts || [];
@@ -252,7 +219,7 @@
         }
         
         function editPost(id) {
-            fetchWithAuth(`${BASE_URL}/posts/${id}`)
+            fetch(`${BASE_URL}/posts/${id}`)
                 .then(response => response.json())
                 .then(post => {
                     document.getElementById('postId').value = post.id;
@@ -267,7 +234,7 @@
         }
         
         function editProject(id) {
-            fetchWithAuth(`${BASE_URL}/projects/${id}`)
+            fetch(`${BASE_URL}/projects/${id}`)
                 .then(response => response.json())
                 .then(project => {
                     document.getElementById('projectId').value = project.id;
@@ -284,7 +251,7 @@
         
         function deletePost(id) {
             if (confirm('Удалить эту запись?')) {
-                fetchWithAuth(`${BASE_URL}/posts/${id}`, {
+                fetch(`${BASE_URL}/posts/${id}`, {
                     method: 'DELETE'
                 })
                 .then(() => {
@@ -297,7 +264,7 @@
         
         function deleteProject(id) {
             if (confirm('Удалить этот проект?')) {
-                fetchWithAuth(`${BASE_URL}/projects/${id}`, {
+                fetch(`${BASE_URL}/projects/${id}`, {
                     method: 'DELETE'
                 })
                 .then(() => {
@@ -321,8 +288,9 @@
             const method = id ? 'PUT' : 'POST';
             const url = id ? `${BASE_URL}/posts/${id}` : `${BASE_URL}/posts`;
             
-            fetchWithAuth(url, {
+            fetch(url, {
                 method,
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             })
             .then(response => {
@@ -353,8 +321,9 @@
             const method = id ? 'PUT' : 'POST';
             const url = id ? `${BASE_URL}/projects/${id}` : `${BASE_URL}/projects`;
             
-            fetchWithAuth(url, {
+            fetch(url, {
                 method,
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             })
             .then(response => {
@@ -390,8 +359,9 @@
                 url = `${BASE_URL}/abouts`;
             }
             
-            fetchWithAuth(url, {
+            fetch(url, {
                 method,
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             })
             .then(response => {
