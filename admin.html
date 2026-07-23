@@ -150,6 +150,50 @@
     <script>
         const BASE_URL = 'https://my-website-backend-l1ou.onrender.com';
         
+        let basicAuth = sessionStorage.getItem('adminBasic');
+        
+        function requestCredentials() {
+            const username = prompt('Введите логин:');
+            if (!username) return false;
+            const password = prompt('Введите пароль:');
+            if (!password) return false;
+            basicAuth = 'Basic ' + btoa(username + ':' + password);
+            sessionStorage.setItem('adminBasic', basicAuth);
+            return true;
+        }
+        
+        function getHeaders() {
+            if (!basicAuth) {
+                const ok = requestCredentials();
+                if (!ok) throw new Error('Аутентификация отменена');
+            }
+            return {
+                'Authorization': basicAuth,
+                'Content-Type': 'application/json'
+            };
+        }
+        
+        async function secureFetch(url, options = {}) {
+            let response = await fetch(url, {
+                ...options,
+                headers: getHeaders()
+            });
+            if (response.status === 401) {
+                sessionStorage.removeItem('adminBasic');
+                basicAuth = null;
+                const ok = requestCredentials();
+                if (!ok) throw new Error('Аутентификация отменена');
+                response = await fetch(url, {
+                    ...options,
+                    headers: getHeaders()
+                });
+            }
+            if (!response.ok) {
+                throw new Error(`Ошибка ${response.status}`);
+            }
+            return response;
+        }
+        
         function loadPosts() {
             fetch(`${BASE_URL}/posts`)
                 .then(response => response.json())
@@ -251,7 +295,7 @@
         
         function deletePost(id) {
             if (confirm('Удалить эту запись?')) {
-                fetch(`${BASE_URL}/posts/${id}`, {
+                secureFetch(`${BASE_URL}/posts/${id}`, {
                     method: 'DELETE'
                 })
                 .then(() => {
@@ -264,7 +308,7 @@
         
         function deleteProject(id) {
             if (confirm('Удалить этот проект?')) {
-                fetch(`${BASE_URL}/projects/${id}`, {
+                secureFetch(`${BASE_URL}/projects/${id}`, {
                     method: 'DELETE'
                 })
                 .then(() => {
@@ -288,9 +332,8 @@
             const method = id ? 'PUT' : 'POST';
             const url = id ? `${BASE_URL}/posts/${id}` : `${BASE_URL}/posts`;
             
-            fetch(url, {
+            secureFetch(url, {
                 method,
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             })
             .then(response => {
@@ -321,9 +364,8 @@
             const method = id ? 'PUT' : 'POST';
             const url = id ? `${BASE_URL}/projects/${id}` : `${BASE_URL}/projects`;
             
-            fetch(url, {
+            secureFetch(url, {
                 method,
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             })
             .then(response => {
@@ -359,9 +401,8 @@
                 url = `${BASE_URL}/abouts`;
             }
             
-            fetch(url, {
+            secureFetch(url, {
                 method,
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             })
             .then(response => {
