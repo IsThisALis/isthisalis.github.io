@@ -60,7 +60,6 @@
     <div class="container">
         <h1>Админ-панель</h1>
         
-        <!-- Форма для постов -->
         <div class="form-section">
             <h2>Управление записями</h2>
             <form id="postForm">
@@ -91,7 +90,6 @@
             <div id="postsList" class="item-list"></div>
         </div>
         
-        <!-- Форма для проектов -->
         <div class="form-section" style="margin-top: 40px;">
             <h2>Управление проектами</h2>
             <form id="projectForm">
@@ -126,7 +124,6 @@
             <div id="projectsList" class="item-list"></div>
         </div>
         
-        <!-- Управление "О себе" -->
         <div class="form-section" style="margin-top: 40px;">
             <h2>Редактировать "О себе"</h2>
             <form id="aboutForm">
@@ -153,14 +150,41 @@
     <script>
         const BASE_URL = 'https://my-website-backend-l1ou.onrender.com';
         
-        // Убрана авторизация через токен, оставлены только Content-Type
-        const headers = {
-            'Content-Type': 'application/json'
-        };
+        let basicAuth = sessionStorage.getItem('adminBasic');
         
-        // Загрузка данных
+        async function fetchWithAuth(url, options = {}) {
+            const headers = new Headers(options.headers || {});
+            if (!headers.has('Content-Type') && options.body) {
+                headers.set('Content-Type', 'application/json');
+            }
+            if (basicAuth) {
+                headers.set('Authorization', basicAuth);
+            }
+            
+            let response = await fetch(url, { ...options, headers });
+            
+            if (response.status === 401) {
+                const username = prompt('Введите логин:');
+                const password = prompt('Введите пароль:');
+                if (username && password) {
+                    basicAuth = 'Basic ' + btoa(username + ':' + password);
+                    sessionStorage.setItem('adminBasic', basicAuth);
+                    headers.set('Authorization', basicAuth);
+                    response = await fetch(url, { ...options, headers });
+                } else {
+                    throw new Error('Аутентификация отменена');
+                }
+            }
+            
+            if (!response.ok && response.status !== 401) {
+                throw new Error(`Ошибка ${response.status}`);
+            }
+            
+            return response;
+        }
+        
         function loadPosts() {
-            fetch(`${BASE_URL}/posts`)
+            fetchWithAuth(`${BASE_URL}/posts`)
                 .then(response => response.json())
                 .then(data => {
                     const posts = data._embedded?.posts || [];
@@ -186,7 +210,7 @@
         }
         
         function loadProjects() {
-            fetch(`${BASE_URL}/projects`)
+            fetchWithAuth(`${BASE_URL}/projects`)
                 .then(response => response.json())
                 .then(data => {
                     const projects = data._embedded?.projects || [];
@@ -212,13 +236,13 @@
         }
         
         function loadAbout() {
-            fetch(`${BASE_URL}/abouts`)
+            fetchWithAuth(`${BASE_URL}/abouts`)
                 .then(response => response.json())
                 .then(data => {
                     const abouts = data._embedded?.abouts || [];
-                    const about = abouts[0]; // Получаем первую (и предположительно единственную) запись
+                    const about = abouts[0];
                     if (about) {
-                        document.getElementById('aboutId').value = about.id; // Сохраняем ID
+                        document.getElementById('aboutId').value = about.id;
                         document.getElementById('aboutTitle').value = about.title || '';
                         document.getElementById('aboutContent').value = about.content || '';
                         document.getElementById('aboutTechstack').value = about.techstack || '';
@@ -227,9 +251,8 @@
                 .catch(showError);
         }
         
-        // Функции редактирования
         function editPost(id) {
-            fetch(`${BASE_URL}/posts/${id}`)
+            fetchWithAuth(`${BASE_URL}/posts/${id}`)
                 .then(response => response.json())
                 .then(post => {
                     document.getElementById('postId').value = post.id;
@@ -244,7 +267,7 @@
         }
         
         function editProject(id) {
-            fetch(`${BASE_URL}/projects/${id}`)
+            fetchWithAuth(`${BASE_URL}/projects/${id}`)
                 .then(response => response.json())
                 .then(project => {
                     document.getElementById('projectId').value = project.id;
@@ -259,10 +282,9 @@
                 .catch(showError);
         }
         
-        // Функции удаления
         function deletePost(id) {
             if (confirm('Удалить эту запись?')) {
-                fetch(`${BASE_URL}/posts/${id}`, {
+                fetchWithAuth(`${BASE_URL}/posts/${id}`, {
                     method: 'DELETE'
                 })
                 .then(() => {
@@ -275,7 +297,7 @@
         
         function deleteProject(id) {
             if (confirm('Удалить этот проект?')) {
-                fetch(`${BASE_URL}/projects/${id}`, {
+                fetchWithAuth(`${BASE_URL}/projects/${id}`, {
                     method: 'DELETE'
                 })
                 .then(() => {
@@ -286,7 +308,6 @@
             }
         }
         
-        // Отправка форм
         document.getElementById('postForm').addEventListener('submit', e => {
             e.preventDefault();
             const formData = {
@@ -300,9 +321,8 @@
             const method = id ? 'PUT' : 'POST';
             const url = id ? `${BASE_URL}/posts/${id}` : `${BASE_URL}/posts`;
             
-            fetch(url, {
+            fetchWithAuth(url, {
                 method,
-                headers,
                 body: JSON.stringify(formData)
             })
             .then(response => {
@@ -333,9 +353,8 @@
             const method = id ? 'PUT' : 'POST';
             const url = id ? `${BASE_URL}/projects/${id}` : `${BASE_URL}/projects`;
             
-            fetch(url, {
+            fetchWithAuth(url, {
                 method,
-                headers,
                 body: JSON.stringify(formData)
             })
             .then(response => {
@@ -364,29 +383,25 @@
             let method, url;
             
             if (existingId) {
-                // Если ID существует, обновляем существующую запись
                 method = 'PUT';
                 url = `${BASE_URL}/abouts/${existingId}`;
             } else {
-                // Если ID нет, создаем новую
                 method = 'POST';
                 url = `${BASE_URL}/abouts`;
             }
             
-            fetch(url, {
+            fetchWithAuth(url, {
                 method,
-                headers,
                 body: JSON.stringify(formData)
             })
             .then(response => {
                 if (response.ok) {
-                    return response.json(); // Парсим ответ, чтобы получить ID новой записи
+                    return response.json();
                 } else {
                     throw new Error('Ошибка сохранения');
                 }
             })
             .then(data => {
-                // После успешного создания/обновления сохраняем ID
                 if (data.id) {
                     document.getElementById('aboutId').value = data.id;
                 }
@@ -395,7 +410,6 @@
             .catch(showError);
         });
         
-        // Кнопки отмены
         document.getElementById('cancelPostBtn').addEventListener('click', () => {
             document.getElementById('postForm').reset();
             document.getElementById('postId').value = '';
@@ -408,7 +422,6 @@
             document.querySelector('#cancelProjectBtn').style.display = 'none';
         });
         
-        // Вспомогательные функции
         function showMessage(text, type = 'error') {
             const msgEl = document.getElementById('message');
             msgEl.textContent = text;
@@ -421,7 +434,6 @@
             showMessage('Произошла ошибка. Проверьте консоль.');
         }
         
-        // Загрузка данных при старте
         loadPosts();
         loadProjects();
         loadAbout();
