@@ -40,7 +40,7 @@
 
     <script>
         // Загружаем посты (без изменений)
-        fetch('https://my-website-backend-l1ou.onrender.com/posts')
+        fetch('https://my-website-backend-l1ou.onrender.com/posts?sort=id,desc')
             .then(response => response.json())
             .then(data => {
                 const posts = data._embedded?.posts || [];
