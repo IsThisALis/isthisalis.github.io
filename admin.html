@@ -232,21 +232,26 @@
         }
         
         function loadAbout() {
-            fetch(`${BASE_URL}/abouts`)
-                .then(response => response.json())
-                .then(data => {
-                    const abouts = data._embedded?.abouts || [];
-                    const about = abouts[0];
-                    if (about) {
-                        document.getElementById('aboutId').value = about.id;
-                        document.getElementById('aboutTitle').value = about.title || '';
-                        document.getElementById('aboutContent').value = about.content || '';
-                        document.getElementById('aboutTechstack').value = about.techstack || '';
-                    }
-                })
-                .catch(showError);
-        }
-        
+    fetch(`${BASE_URL}/abouts`)
+        .then(response => response.json())
+        .then(data => {
+            const abouts = data._embedded?.abouts || [];
+            const about = abouts[0];
+            if (about && typeof about.id === 'number') {
+                document.getElementById('aboutId').value = about.id;
+                document.getElementById('aboutTitle').value = about.title || '';
+                document.getElementById('aboutContent').value = about.content || '';
+                document.getElementById('aboutTechstack').value = about.techstack || '';
+            } else {
+                // Нет записи – оставляем aboutId пустым, будет создана новая
+                document.getElementById('aboutId').value = '';
+                document.getElementById('aboutTitle').value = '';
+                document.getElementById('aboutContent').value = '';
+                document.getElementById('aboutTechstack').value = '';
+            }
+        })
+        .catch(showError);
+}        
         function editPost(id) {
             fetch(`${BASE_URL}/posts/${id}`)
                 .then(response => response.json())
