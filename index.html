@@ -96,8 +96,8 @@
             });
 
         // Загружаем "О себе" (обновлено: title, content, techstack)
-        fetch('https://my-website-backend-l1ou.onrender.com/abouts')
-            .then(response => response.json())
+        fetch('https://my-website-backend-l1ou.onrender.com/abouts?sort=id,desc&size=1')
+          .then(response => response.json())
             .then(data => {
                 const abouts = data._embedded?.abouts?.[0] || data;
                 const container = document.getElementById('abouts');
