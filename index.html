@@ -78,35 +78,42 @@
                     return;
                 }
                 posts.forEach(post => {
-                    const div = document.createElement('div');
-                    div.className = 'post';
-                    div.innerHTML = `
-                        <h2>${post.title}</h2>
-                        <p>${post.content || post.description}</p>
-                        ${post.image ? `<img src="${post.image}" style="max-width:100%; margin:10px 0;" />` : ''}
-                        <small>${new Date(post.createdAt).toLocaleString('ru-RU')}</small>
-                    `;
-                    container.appendChild(div);
+    // Извлекаем числовой ID из ссылки self
+    const selfHref = post._links?.self?.href || '';
+    const postId = parseInt(selfHref.split('/').pop());
+    if (isNaN(postId)) {
+        console.error('Не удалось извлечь ID поста из:', selfHref);
+        return;
+    }
 
-                    // Добавляем блок комментариев после поста
-                    const commentsDiv = document.createElement('div');
-                    commentsDiv.className = 'comments';
-                    commentsDiv.id = `comments-${post.id}`;
-                    commentsDiv.innerHTML = `
-                      <h4>Комментарии</h4>
-                      <div id="comments-list-${post.id}">Загрузка...</div>
-                      <div class="comment-form">
-                        <input type="text" id="author-${post.id}" placeholder="Ваше имя" maxlength="100" />
-                        <textarea id="body-${post.id}" placeholder="Текст комментария" rows="3" required></textarea>
-                        <button onclick="addComment(${post.id})">Отправить</button>
-                      </div>
-                    `;
-                    container.appendChild(commentsDiv);
+    const div = document.createElement('div');
+    div.className = 'post';
+    div.innerHTML = `
+        <h2>${post.title}</h2>
+        <p>${post.content || post.description}</p>
+        ${post.image ? `<img src="${post.image}" style="max-width:100%; margin:10px 0;" />` : ''}
+        <small>${new Date(post.createdAt).toLocaleString('ru-RU')}</small>
+    `;
+    container.appendChild(div);
 
-                    // Загружаем комментарии для этого поста
-                    loadCommentsForPost(post.id);
-                });
-            })
+    // Добавляем блок комментариев после поста
+    const commentsDiv = document.createElement('div');
+    commentsDiv.className = 'comments';
+    commentsDiv.id = `comments-${postId}`;
+    commentsDiv.innerHTML = `
+      <h4>Комментарии</h4>
+      <div id="comments-list-${postId}">Загрузка...</div>
+      <div class="comment-form">
+        <input type="text" id="author-${postId}" placeholder="Ваше имя" maxlength="100" />
+        <textarea id="body-${postId}" placeholder="Текст комментария" rows="3" required></textarea>
+        <button onclick="addComment(${postId})">Отправить</button>
+      </div>
+    `;
+    container.appendChild(commentsDiv);
+
+    // Загружаем комментарии для этого поста
+    loadCommentsForPost(postId);
+});            })
             .catch(err => {
                 document.getElementById('posts').innerHTML += '<p>Ошибка загрузки постов.</p>';
                 console.error(err);
@@ -149,12 +156,6 @@
 }
         // Функция добавления нового комментария
         function addComment(postId) {
-    // Проверка, что postId – число
-    if (typeof postId !== 'number' || isNaN(postId)) {
-        alert('Ошибка: невозможно определить, к какому посту добавить комментарий. Пожалуйста, обновите страницу.');
-        return;
-    }
-
     const authorInput = document.getElementById(`author-${postId}`);
     const bodyInput = document.getElementById(`body-${postId}`);
 
@@ -196,7 +197,6 @@
         alert('Не удалось отправить комментарий. Попробуйте позже.');
     });
 }
-
         // Загружаем проекты (обновлено под новые поля)
         fetch(`${BASE_URL}/projects`)
             .then(response => response.json())
