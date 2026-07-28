@@ -114,77 +114,88 @@
 
         // Функция загрузки комментариев для конкретного поста
         function loadCommentsForPost(postId) {
-            fetch(`${BASE_URL}/comments/search/findByPostIdOrderByCreatedAtDesc?postId=${postId}`)
-                .then(response => response.json())
-                .then(data => {
-                    const comments = data._embedded?.comments || [];
-                    const listContainer = document.getElementById(`comments-list-${postId}`);
-                    if (comments.length === 0) {
-                        listContainer.innerHTML = '<p>Комментариев пока нет.</p>';
-                        return;
-                    }
-                    let html = '';
-                    comments.forEach(comment => {
-                        html += `
-                          <div class="comment">
-                            <div class="comment-author">${comment.author}</div>
-                            <div class="comment-body">${comment.body}</div>
-                            <div class="comment-time">${new Date(comment.createdAt).toLocaleString('ru-RU')}</div>
-                          </div>
-                        `;
-                    });
-                    listContainer.innerHTML = html;
-                })
-                .catch(err => {
-                    console.error('Ошибка загрузки комментариев:', err);
-                    document.getElementById(`comments-list-${postId}`).innerHTML = '<p>Ошибка загрузки комментариев.</p>';
-                });
-        }
-
-        // Функция добавления нового комментария
-        function addComment(postId) {
-            const authorInput = document.getElementById(`author-${postId}`);
-            const bodyInput = document.getElementById(`body-${postId}`);
-
-            const author = authorInput.value.trim();
-            const body = bodyInput.value.trim();
-
-            if (!author || !body) {
-                alert("Пожалуйста, заполните все поля.");
+    fetch(`${BASE_URL}/comments/search/findByPostIdOrderByCreatedAtDesc?postId=${postId}`)
+        .then(response => {
+            if (!response.ok) throw new Error('Ошибка загрузки комментариев');
+            return response.json();
+        })
+        .then(data => {
+            const comments = data._embedded?.comments || [];
+            const listContainer = document.getElementById(`comments-list-${postId}`);
+            if (!listContainer) return;
+            if (comments.length === 0) {
+                listContainer.innerHTML = '<p>Комментариев пока нет.</p>';
                 return;
             }
-
-            const commentData = {
-                author: author,
-                body: body,
-                createdAt: new Date().toISOString(),
-                post: `${BASE_URL}/posts/${postId}`
-            };
-
-            fetch(`${BASE_URL}/comments`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(commentData)
-            })
-            .then(response => {
-                if (response.ok) {
-                    // Очищаем форму
-                    authorInput.value = '';
-                    bodyInput.value = '';
-                    // Обновляем список комментариев
-                    loadCommentsForPost(postId);
-                } else {
-                    throw new Error('Ошибка при отправке комментария');
-                }
-            })
-            .catch(err => {
-                console.error('Ошибка:', err);
-                alert('Произошла ошибка при отправке комментария.');
+            let html = '';
+            comments.forEach(comment => {
+                html += `
+                  <div class="comment">
+                    <div class="comment-author">${comment.author}</div>
+                    <div class="comment-body">${comment.body}</div>
+                    <div class="comment-time">${new Date(comment.createdAt).toLocaleString('ru-RU')}</div>
+                  </div>
+                `;
             });
-        }
+            listContainer.innerHTML = html;
+        })
+        .catch(err => {
+            console.error('Ошибка загрузки комментариев:', err);
+            const listContainer = document.getElementById(`comments-list-${postId}`);
+            if (listContainer) {
+                listContainer.innerHTML = '<p>Не удалось загрузить комментарии.</p>';
+            }
+        });
+}
+        // Функция добавления нового комментария
+        function addComment(postId) {
+    // Проверка, что postId – число
+    if (typeof postId !== 'number' || isNaN(postId)) {
+        alert('Ошибка: невозможно определить, к какому посту добавить комментарий. Пожалуйста, обновите страницу.');
+        return;
+    }
 
+    const authorInput = document.getElementById(`author-${postId}`);
+    const bodyInput = document.getElementById(`body-${postId}`);
+
+    if (!authorInput || !bodyInput) {
+        alert('Ошибка: поля для ввода не найдены. Обновите страницу.');
+        return;
+    }
+
+    const author = authorInput.value.trim() || 'Гость';
+    const body = bodyInput.value.trim();
+
+    if (!body) {
+        alert('Пожалуйста, введите текст комментария.');
+        return;
+    }
+
+    const commentData = {
+        author: author,
+        body: body,
+        createdAt: new Date().toISOString(),
+        post: `${BASE_URL}/posts/${postId}`
+    };
+
+    fetch(`${BASE_URL}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(commentData)
+    })
+    .then(response => {
+        if (response.ok) {
+            bodyInput.value = '';
+            loadCommentsForPost(postId);
+        } else {
+            throw new Error('Ошибка при отправке комментария');
+        }
+    })
+    .catch(err => {
+        console.error('Ошибка:', err);
+        alert('Не удалось отправить комментарий. Попробуйте позже.');
+    });
+}
 
         // Загружаем проекты (обновлено под новые поля)
         fetch(`${BASE_URL}/projects`)
