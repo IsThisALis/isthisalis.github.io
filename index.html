@@ -16,6 +16,32 @@
         .section.active { display: block; }
         .abouts-content { line-height: 1.6; }
         .abouts-content .techstack { margin-top: 15px; font-style: italic; color: #444; }
+
+        /* Стили для комментариев */
+        .comments {
+            border-left: 3px solid #ddd;
+            padding: 10px 0 0 15px;
+            margin-top: 15px;
+        }
+        .comment {
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .comment-author {
+            font-weight: bold;
+        }
+        .comment-time {
+            font-size: 0.8em;
+            color: #888;
+        }
+        .comment-form input, .comment-form textarea {
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 8px;
+            padding: 5px;
+        }
     </style>
 </head>
 <body>
@@ -39,8 +65,10 @@
     </div>
 
     <script>
-        // Загружаем посты (без изменений)
-        fetch('https://my-website-backend-l1ou.onrender.com/posts?sort=id,desc')
+        const BASE_URL = 'https://my-website-backend-l1ou.onrender.com';
+
+        // Загружаем посты (обновлено)
+        fetch(`${BASE_URL}/posts?sort=id,desc`)
             .then(response => response.json())
             .then(data => {
                 const posts = data._embedded?.posts || [];
@@ -59,6 +87,24 @@
                         <small>${new Date(post.createdAt).toLocaleString('ru-RU')}</small>
                     `;
                     container.appendChild(div);
+
+                    // Добавляем блок комментариев после поста
+                    const commentsDiv = document.createElement('div');
+                    commentsDiv.className = 'comments';
+                    commentsDiv.id = `comments-${post.id}`;
+                    commentsDiv.innerHTML = `
+                      <h4>Комментарии</h4>
+                      <div id="comments-list-${post.id}">Загрузка...</div>
+                      <div class="comment-form">
+                        <input type="text" id="author-${post.id}" placeholder="Ваше имя" maxlength="100" />
+                        <textarea id="body-${post.id}" placeholder="Текст комментария" rows="3" required></textarea>
+                        <button onclick="addComment(${post.id})">Отправить</button>
+                      </div>
+                    `;
+                    container.appendChild(commentsDiv);
+
+                    // Загружаем комментарии для этого поста
+                    loadCommentsForPost(post.id);
                 });
             })
             .catch(err => {
@@ -66,8 +112,82 @@
                 console.error(err);
             });
 
+        // Функция загрузки комментариев для конкретного поста
+        function loadCommentsForPost(postId) {
+            fetch(`${BASE_URL}/comments/search/findByPostIdOrderByCreatedAtDesc?postId=${postId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const comments = data._embedded?.comments || [];
+                    const listContainer = document.getElementById(`comments-list-${postId}`);
+                    if (comments.length === 0) {
+                        listContainer.innerHTML = '<p>Комментариев пока нет.</p>';
+                        return;
+                    }
+                    let html = '';
+                    comments.forEach(comment => {
+                        html += `
+                          <div class="comment">
+                            <div class="comment-author">${comment.author}</div>
+                            <div class="comment-body">${comment.body}</div>
+                            <div class="comment-time">${new Date(comment.createdAt).toLocaleString('ru-RU')}</div>
+                          </div>
+                        `;
+                    });
+                    listContainer.innerHTML = html;
+                })
+                .catch(err => {
+                    console.error('Ошибка загрузки комментариев:', err);
+                    document.getElementById(`comments-list-${postId}`).innerHTML = '<p>Ошибка загрузки комментариев.</p>';
+                });
+        }
+
+        // Функция добавления нового комментария
+        function addComment(postId) {
+            const authorInput = document.getElementById(`author-${postId}`);
+            const bodyInput = document.getElementById(`body-${postId}`);
+
+            const author = authorInput.value.trim();
+            const body = bodyInput.value.trim();
+
+            if (!author || !body) {
+                alert("Пожалуйста, заполните все поля.");
+                return;
+            }
+
+            const commentData = {
+                author: author,
+                body: body,
+                createdAt: new Date().toISOString(),
+                post: `${BASE_URL}/posts/${postId}`
+            };
+
+            fetch(`${BASE_URL}/comments`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(commentData)
+            })
+            .then(response => {
+                if (response.ok) {
+                    // Очищаем форму
+                    authorInput.value = '';
+                    bodyInput.value = '';
+                    // Обновляем список комментариев
+                    loadCommentsForPost(postId);
+                } else {
+                    throw new Error('Ошибка при отправке комментария');
+                }
+            })
+            .catch(err => {
+                console.error('Ошибка:', err);
+                alert('Произошла ошибка при отправке комментария.');
+            });
+        }
+
+
         // Загружаем проекты (обновлено под новые поля)
-        fetch('https://my-website-backend-l1ou.onrender.com/projects')
+        fetch(`${BASE_URL}/projects`)
             .then(response => response.json())
             .then(data => {
                 const projects = data._embedded?.projects || [];
@@ -96,7 +216,7 @@
             });
 
         // Загружаем "О себе" (обновлено: title, content, techstack)
-        fetch('https://my-website-backend-l1ou.onrender.com/abouts?sort=id,desc&size=1')
+        fetch(`${BASE_URL}/abouts?sort=id,desc&size=1`)
           .then(response => response.json())
             .then(data => {
                 const abouts = data._embedded?.abouts?.[0] || data;
