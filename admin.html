@@ -5,55 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Админ-панель</title>
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            max-width: 900px; 
-            margin: 0 auto; 
-            padding: 20px; 
-            background-color: #f5f5f5;
-        }
-        .container { 
-            background: white; 
-            padding: 25px; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
-        }
+        /* стили без изменений */
+        body { font-family: Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+        .container { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         h1 { color: #333; margin-bottom: 25px; }
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input, textarea, select { 
-            width: 100%; 
-            padding: 8px; 
-            border: 1px solid #ddd; 
-            border-radius: 4px; 
-            box-sizing: border-box;
-        }
+        input, textarea, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
         textarea { height: 120px; resize: vertical; }
-        button { 
-            background-color: #007bff; 
-            color: white; 
-            border: none; 
-            padding: 10px 20px; 
-            border-radius: 4px; 
-            cursor: pointer; 
-            margin-right: 10px;
-        }
+        button { background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px; }
         button:hover { background-color: #0056b3; }
         button.delete { background-color: #dc3545; }
         button.delete:hover { background-color: #c82333; }
         .item-list { margin-top: 30px; }
-        .item { 
-            border: 1px solid #eee; 
-            padding: 15px; 
-            margin-bottom: 10px; 
-            border-radius: 4px;
-        }
+        .item { border: 1px solid #eee; padding: 15px; margin-bottom: 10px; border-radius: 4px; }
         .item-actions { margin-top: 10px; }
         .error { color: red; margin: 10px 0; }
         .success { color: green; margin: 10px 0; }
     </style>
 </head>
 <body>
+    <!-- Защита от Clickjacking -->
+    <script>
+        if (window.top !== window.self) {
+            window.top.location = window.self.location;
+        }
+    </script>
+
     <div class="container">
         <h1>Админ-панель</h1>
         
@@ -73,11 +51,9 @@
                     <label for="postImage">URL изображения:</label>
                     <input type="text" id="postImage">
                 </div>
-                <!-- статус удалён -->
                 <button type="submit">Сохранить запись</button>
                 <button type="button" id="cancelPostBtn" style="display:none;">Отмена</button>
             </form>
-            
             <div id="postsList" class="item-list"></div>
         </div>
         
@@ -101,11 +77,9 @@
                     <label for="projectUrl">Ссылка на репозиторий:</label>
                     <input type="url" id="projectUrl">
                 </div>
-                <!-- статус удалён -->
                 <button type="submit">Сохранить проект</button>
                 <button type="button" id="cancelProjectBtn" style="display:none;">Отмена</button>
             </form>
-            
             <div id="projectsList" class="item-list"></div>
         </div>
         
@@ -135,18 +109,18 @@
     <script>
         const BASE_URL = 'https://my-website-backend-l1ou.onrender.com';
         
-        let basicAuth = sessionStorage.getItem('adminBasic');
-        
+        // ---- БЕЗОПАСНОЕ ХРАНЕНИЕ КРЕДЕНЦИАЛОВ (только в памяти, не в sessionStorage) ----
+        let basicAuth = null; // будет хранить "Basic ..."
+
         function requestCredentials() {
             const username = prompt('Введите логин:');
             if (!username) return false;
             const password = prompt('Введите пароль:');
             if (!password) return false;
             basicAuth = 'Basic ' + btoa(username + ':' + password);
-            sessionStorage.setItem('adminBasic', basicAuth);
             return true;
         }
-        
+
         function getHeaders() {
             if (!basicAuth) {
                 const ok = requestCredentials();
@@ -157,15 +131,14 @@
                 'Content-Type': 'application/json'
             };
         }
-        
+
         async function secureFetch(url, options = {}) {
             let response = await fetch(url, {
                 ...options,
                 headers: getHeaders()
             });
             if (response.status === 401) {
-                sessionStorage.removeItem('adminBasic');
-                basicAuth = null;
+                basicAuth = null; // сбросить, чтобы запросить заново
                 const ok = requestCredentials();
                 if (!ok) throw new Error('Аутентификация отменена');
                 response = await fetch(url, {
@@ -178,80 +151,157 @@
             }
             return response;
         }
-        
+
+        // ---- ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ БЕЗОПАСНОГО СОЗДАНИЯ ЭЛЕМЕНТОВ ----
+        function createSafeElement(tag, text) {
+            const el = document.createElement(tag);
+            el.textContent = text;
+            return el;
+        }
+
+        // ---- ЗАГРУЗКА СПИСКА ПОСТОВ (без innerHTML) ----
         function loadPosts() {
             fetch(`${BASE_URL}/posts`)
                 .then(response => response.json())
                 .then(data => {
                     const posts = data._embedded?.posts || [];
                     const container = document.getElementById('postsList');
-                    container.innerHTML = '<h3>Список записей</h3>';
-                    
+                    // Очищаем
+                    container.innerHTML = '';
+                    const header = document.createElement('h3');
+                    header.textContent = 'Список записей';
+                    container.appendChild(header);
+
+                    if (posts.length === 0) {
+                        container.appendChild(createSafeElement('p', 'Нет записей.'));
+                        return;
+                    }
+
                     posts.forEach(post => {
                         const div = document.createElement('div');
                         div.className = 'item';
-                        div.innerHTML = `
-                            <h4>${post.title}</h4>
-                            <p>${post.content.substring(0, 100)}${post.content.length > 100 ? '...' : ''}</p>
-                            <small>Дата: ${new Date(post.createdAt).toLocaleString('ru-RU')}</small>
-                            <div class="item-actions">
-                                <button onclick="editPost('${post.id}')">Редактировать</button>
-                                <button class="delete" onclick="deletePost('${post.id}')">Удалить</button>
-                            </div>
-                        `;
+
+                        const title = document.createElement('h4');
+                        title.textContent = post.title;
+                        div.appendChild(title);
+
+                        const contentPreview = document.createElement('p');
+                        const preview = post.content && post.content.length > 100 
+                            ? post.content.substring(0, 100) + '...' 
+                            : post.content || '';
+                        contentPreview.textContent = preview;
+                        div.appendChild(contentPreview);
+
+                        const date = document.createElement('small');
+                        date.textContent = `Дата: ${new Date(post.createdAt).toLocaleString('ru-RU')}`;
+                        div.appendChild(date);
+
+                        const actions = document.createElement('div');
+                        actions.className = 'item-actions';
+
+                        const editBtn = document.createElement('button');
+                        editBtn.textContent = 'Редактировать';
+                        editBtn.onclick = function() { editPost(post.id); };
+                        actions.appendChild(editBtn);
+
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'delete';
+                        deleteBtn.textContent = 'Удалить';
+                        deleteBtn.onclick = function() { deletePost(post.id); };
+                        actions.appendChild(deleteBtn);
+
+                        div.appendChild(actions);
                         container.appendChild(div);
                     });
                 })
                 .catch(showError);
         }
-        
+
+        // ---- ЗАГРУЗКА СПИСКА ПРОЕКТОВ (без innerHTML) ----
         function loadProjects() {
             fetch(`${BASE_URL}/projects`)
                 .then(response => response.json())
                 .then(data => {
                     const projects = data._embedded?.projects || [];
                     const container = document.getElementById('projectsList');
-                    container.innerHTML = '<h3>Список проектов</h3>';
-                    
+                    container.innerHTML = '';
+                    const header = document.createElement('h3');
+                    header.textContent = 'Список проектов';
+                    container.appendChild(header);
+
+                    if (projects.length === 0) {
+                        container.appendChild(createSafeElement('p', 'Нет проектов.'));
+                        return;
+                    }
+
                     projects.forEach(project => {
                         const div = document.createElement('div');
                         div.className = 'item';
-                        div.innerHTML = `
-                            <h4>${project.name}</h4>
-                            <p>${project.description.substring(0, 100)}${project.description.length > 100 ? '...' : ''}</p>
-                            ${project.techstack ? `<p><strong>Технологии:</strong> ${project.techstack}</p>` : ''}
-                            <div class="item-actions">
-                                <button onclick="editProject('${project.id}')">Редактировать</button>
-                                <button class="delete" onclick="deleteProject('${project.id}')">Удалить</button>
-                            </div>
-                        `;
+
+                        const name = document.createElement('h4');
+                        name.textContent = project.name;
+                        div.appendChild(name);
+
+                        const desc = document.createElement('p');
+                        const preview = project.description && project.description.length > 100
+                            ? project.description.substring(0, 100) + '...'
+                            : project.description || '';
+                        desc.textContent = preview;
+                        div.appendChild(desc);
+
+                        if (project.techstack) {
+                            const tech = document.createElement('p');
+                            const strong = document.createElement('strong');
+                            strong.textContent = 'Технологии: ';
+                            tech.appendChild(strong);
+                            tech.append(project.techstack);
+                            div.appendChild(tech);
+                        }
+
+                        const actions = document.createElement('div');
+                        actions.className = 'item-actions';
+
+                        const editBtn = document.createElement('button');
+                        editBtn.textContent = 'Редактировать';
+                        editBtn.onclick = function() { editProject(project.id); };
+                        actions.appendChild(editBtn);
+
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'delete';
+                        deleteBtn.textContent = 'Удалить';
+                        deleteBtn.onclick = function() { deleteProject(project.id); };
+                        actions.appendChild(deleteBtn);
+
+                        div.appendChild(actions);
                         container.appendChild(div);
                     });
                 })
                 .catch(showError);
         }
-        
+
+        // ---- ЗАГРУЗКА "О СЕБЕ" (без innerHTML) ----
         function loadAbout() {
-    fetch(`${BASE_URL}/abouts`)
-        .then(response => response.json())
-        .then(data => {
-            const abouts = data._embedded?.abouts || [];
-            const about = abouts[0];
-            if (about && typeof about.id === 'number') {
-                document.getElementById('aboutId').value = about.id;
-                document.getElementById('aboutTitle').value = about.title || '';
-                document.getElementById('aboutContent').value = about.content || '';
-                document.getElementById('aboutTechstack').value = about.techstack || '';
-            } else {
-                // Нет записи – оставляем aboutId пустым, будет создана новая
-                document.getElementById('aboutId').value = '';
-                document.getElementById('aboutTitle').value = '';
-                document.getElementById('aboutContent').value = '';
-                document.getElementById('aboutTechstack').value = '';
-            }
-        })
-        .catch(showError);
-}        
+            fetch(`${BASE_URL}/abouts`)
+                .then(response => response.json())
+                .then(data => {
+                    const abouts = data._embedded?.abouts || [];
+                    const about = abouts[0];
+                    if (about && typeof about.id === 'number') {
+                        document.getElementById('aboutId').value = about.id;
+                        document.getElementById('aboutTitle').value = about.title || '';
+                        document.getElementById('aboutContent').value = about.content || '';
+                        document.getElementById('aboutTechstack').value = about.techstack || '';
+                    } else {
+                        document.getElementById('aboutId').value = '';
+                        document.getElementById('aboutTitle').value = '';
+                        document.getElementById('aboutContent').value = '';
+                        document.getElementById('aboutTechstack').value = '';
+                    }
+                })
+                .catch(showError);
+        }
+
+        // ---- РЕДАКТИРОВАНИЕ ПОСТА ----
         function editPost(id) {
             fetch(`${BASE_URL}/posts/${id}`)
                 .then(response => response.json())
@@ -260,13 +310,12 @@
                     document.getElementById('postTitle').value = post.title;
                     document.getElementById('postContent').value = post.content;
                     document.getElementById('postImage').value = post.image || '';
-                    // статус больше не устанавливается
                     document.querySelector('#cancelPostBtn').style.display = 'inline-block';
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 })
                 .catch(showError);
         }
-        
+
         function editProject(id) {
             fetch(`${BASE_URL}/projects/${id}`)
                 .then(response => response.json())
@@ -276,39 +325,36 @@
                     document.getElementById('projectDescription').value = project.description;
                     document.getElementById('projectTechstack').value = project.techstack || '';
                     document.getElementById('projectUrl').value = project.url || '';
-                    // статус больше не устанавливается
                     document.querySelector('#cancelProjectBtn').style.display = 'inline-block';
                     window.scrollTo({ top: document.querySelector('.form-section:nth-child(2)').offsetTop, behavior: 'smooth' });
                 })
                 .catch(showError);
         }
-        
+
+        // ---- УДАЛЕНИЕ (с secureFetch) ----
         function deletePost(id) {
             if (confirm('Удалить эту запись?')) {
-                secureFetch(`${BASE_URL}/posts/${id}`, {
-                    method: 'DELETE'
-                })
-                .then(() => {
-                    showMessage('Запись удалена', 'success');
-                    loadPosts();
-                })
-                .catch(showError);
+                secureFetch(`${BASE_URL}/posts/${id}`, { method: 'DELETE' })
+                    .then(() => {
+                        showMessage('Запись удалена', 'success');
+                        loadPosts();
+                    })
+                    .catch(showError);
             }
         }
-        
+
         function deleteProject(id) {
             if (confirm('Удалить этот проект?')) {
-                secureFetch(`${BASE_URL}/projects/${id}`, {
-                    method: 'DELETE'
-                })
-                .then(() => {
-                    showMessage('Проект удален', 'success');
-                    loadProjects();
-                })
-                .catch(showError);
+                secureFetch(`${BASE_URL}/projects/${id}`, { method: 'DELETE' })
+                    .then(() => {
+                        showMessage('Проект удален', 'success');
+                        loadProjects();
+                    })
+                    .catch(showError);
             }
         }
-        
+
+        // ---- ОБРАБОТЧИКИ ФОРМ ----
         document.getElementById('postForm').addEventListener('submit', e => {
             e.preventDefault();
             const formData = {
@@ -316,13 +362,12 @@
                 content: document.getElementById('postContent').value,
                 image: document.getElementById('postImage').value || null,
                 createdAt: new Date().toISOString()
-                // статус удалён
             };
-            
+
             const id = document.getElementById('postId').value;
             const method = id ? 'PUT' : 'POST';
             const url = id ? `${BASE_URL}/posts/${id}` : `${BASE_URL}/posts`;
-            
+
             secureFetch(url, {
                 method,
                 body: JSON.stringify(formData)
@@ -340,7 +385,7 @@
             })
             .catch(showError);
         });
-        
+
         document.getElementById('projectForm').addEventListener('submit', e => {
             e.preventDefault();
             const formData = {
@@ -349,13 +394,12 @@
                 techstack: document.getElementById('projectTechstack').value || null,
                 url: document.getElementById('projectUrl').value || null,
                 createdAt: new Date().toISOString()
-                // статус удалён
             };
-            
+
             const id = document.getElementById('projectId').value;
             const method = id ? 'PUT' : 'POST';
             const url = id ? `${BASE_URL}/projects/${id}` : `${BASE_URL}/projects`;
-            
+
             secureFetch(url, {
                 method,
                 body: JSON.stringify(formData)
@@ -373,7 +417,7 @@
             })
             .catch(showError);
         });
-        
+
         document.getElementById('aboutForm').addEventListener('submit', e => {
             e.preventDefault();
             const formData = {
@@ -381,10 +425,9 @@
                 content: document.getElementById('aboutContent').value,
                 techstack: document.getElementById('aboutTechstack').value || null
             };
-            
+
             const existingId = document.getElementById('aboutId').value;
             let method, url;
-            
             if (existingId) {
                 method = 'PUT';
                 url = `${BASE_URL}/abouts/${existingId}`;
@@ -392,7 +435,7 @@
                 method = 'POST';
                 url = `${BASE_URL}/abouts`;
             }
-            
+
             secureFetch(url, {
                 method,
                 body: JSON.stringify(formData)
@@ -412,31 +455,34 @@
             })
             .catch(showError);
         });
-        
+
+        // ---- ОТМЕНА РЕДАКТИРОВАНИЯ ----
         document.getElementById('cancelPostBtn').addEventListener('click', () => {
             document.getElementById('postForm').reset();
             document.getElementById('postId').value = '';
             document.querySelector('#cancelPostBtn').style.display = 'none';
         });
-        
+
         document.getElementById('cancelProjectBtn').addEventListener('click', () => {
             document.getElementById('projectForm').reset();
             document.getElementById('projectId').value = '';
             document.querySelector('#cancelProjectBtn').style.display = 'none';
         });
-        
+
+        // ---- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ----
         function showMessage(text, type = 'error') {
             const msgEl = document.getElementById('message');
             msgEl.textContent = text;
             msgEl.style.color = type === 'success' ? 'green' : 'red';
             setTimeout(() => msgEl.textContent = '', 5000);
         }
-        
+
         function showError(error) {
             console.error(error);
             showMessage('Произошла ошибка. Проверьте консоль.');
         }
-        
+
+        // ---- ЗАГРУЗКА ДАННЫХ ПРИ СТАРТЕ ----
         loadPosts();
         loadProjects();
         loadAbout();
