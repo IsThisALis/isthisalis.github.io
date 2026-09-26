@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Мой личный сайт</title>
     <style>
-        /* стили без изменений */
         body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
         .post, .project { border-bottom: 1px solid #ccc; padding: 15px 0; }
         .post h2, .project h2 { margin: 0 0 5px; }
@@ -18,34 +17,15 @@
         .section.active { display: block; }
         .abouts-content { line-height: 1.6; }
         .abouts-content .techstack { margin-top: 15px; font-style: italic; color: #444; }
-        .comments {
-            border-left: 3px solid #ddd;
-            padding: 10px 0 0 15px;
-            margin-top: 15px;
-        }
-        .comment {
-            background-color: #f9f9f9;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 10px;
-        }
+        .comments { border-left: 3px solid #ddd; padding: 10px 0 0 15px; margin-top: 15px; }
+        .comment { background-color: #f9f9f9; padding: 10px; border-radius: 4px; margin-bottom: 10px; }
         .comment-author { font-weight: bold; }
         .comment-time { font-size: 0.8em; color: #888; }
-        .comment-form input, .comment-form textarea {
-            width: 100%;
-            box-sizing: border-box;
-            margin-bottom: 8px;
-            padding: 5px;
-        }
+        .comment-form input, .comment-form textarea { width: 100%; box-sizing: border-box; margin-bottom: 8px; padding: 5px; }
     </style>
 </head>
 <body>
-    <!-- Защита от Clickjacking (если страница открыта в iframe – перенаправляем наружу) -->
-    <script>
-        if (window.top !== window.self) {
-            window.top.location = window.self.location;
-        }
-    </script>
+    <script>if (window.top !== window.self) { window.top.location = window.self.location; }</script>
 
     <h1>Личный сайт</h1>
     <nav>
@@ -54,22 +34,13 @@
         <a onclick="showSection('abouts')">О себе</a>
     </nav>
 
-    <div id="posts" class="section active">
-        <h2>Мои записи</h2>
-    </div>
-
-    <div id="projects" class="section">
-        <h2>Проекты</h2>
-    </div>
-
-    <div id="abouts" class="section">
-        <h2>О себе</h2>
-    </div>
+    <div id="posts" class="section active"><h2>Мои записи</h2></div>
+    <div id="projects" class="section"><h2>Проекты</h2></div>
+    <div id="abouts" class="section"><h2>О себе</h2></div>
 
     <script>
-        const BASE_URL = 'https://my-website-backend-l1ou.onrender.com';
+        const BASE_URL = 'https://my-website-backend-l1ou.onrender.com/api';
 
-        // ---------- ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ БЕЗОПАСНОГО СОЗДАНИЯ ЭЛЕМЕНТОВ ----------
         function createSafeElement(tag, textOrOptions) {
             const el = document.createElement(tag);
             if (typeof textOrOptions === 'string') {
@@ -77,7 +48,7 @@
             } else if (typeof textOrOptions === 'object') {
                 for (const [key, value] of Object.entries(textOrOptions)) {
                     if (key === 'text') el.textContent = value;
-                    else if (key === 'html') el.innerHTML = value; // используется только для доверенного контента (например, ссылки)
+                    else if (key === 'html') el.innerHTML = value; 
                     else el.setAttribute(key, value);
                 }
             }
@@ -85,39 +56,29 @@
         }
 
         // ---------- ЗАГРУЗКА ПОСТОВ ----------
-        fetch(`${BASE_URL}/posts?sort=id,desc`)
+        fetch(`${BASE_URL}/posts`)
             .then(response => response.json())
-            .then(data => {
-                const posts = data._embedded?.posts || [];
+            .then(posts => {
                 const container = document.getElementById('posts');
-                if (posts.length === 0) {
+                if (!Array.isArray(posts) || posts.length === 0) {
                     container.appendChild(createSafeElement('p', 'Записей пока нет.'));
                     return;
                 }
                 posts.forEach(post => {
-                    // Извлекаем ID поста
-                    const selfHref = post._links?.self?.href || '';
-                    const postId = parseInt(selfHref.split('/').pop());
-                    if (isNaN(postId)) {
-                        console.error('Не удалось извлечь ID поста из:', selfHref);
-                        return;
-                    }
+                    const postId = post.id;
+                    if (!postId) return;
 
-                    // Контейнер поста
                     const div = document.createElement('div');
                     div.className = 'post';
 
-                    // Заголовок
                     const title = document.createElement('h2');
                     title.textContent = post.title;
                     div.appendChild(title);
 
-                    // Содержание
                     const content = document.createElement('p');
-                    content.textContent = post.content || post.description || '';
+                    content.textContent = post.content || '';
                     div.appendChild(content);
 
-                    // Изображение (если есть)
                     if (post.image) {
                         const img = document.createElement('img');
                         img.src = post.image;
@@ -127,14 +88,12 @@
                         div.appendChild(img);
                     }
 
-                    // Дата
                     const small = document.createElement('small');
-                    small.textContent = new Date(post.createdAt).toLocaleString('ru-RU');
+                    small.textContent = new Date(post.date).toLocaleString('ru-RU'); // date вместо createdAt
                     div.appendChild(small);
 
                     container.appendChild(div);
 
-                    // ---------- БЛОК КОММЕНТАРИЕВ ----------
                     const commentsDiv = document.createElement('div');
                     commentsDiv.className = 'comments';
                     commentsDiv.id = `comments-${postId}`;
@@ -148,7 +107,6 @@
                     listContainer.textContent = 'Загрузка...';
                     commentsDiv.appendChild(listContainer);
 
-                    // Форма комментария
                     const formDiv = document.createElement('div');
                     formDiv.className = 'comment-form';
 
@@ -174,7 +132,6 @@
                     commentsDiv.appendChild(formDiv);
                     container.appendChild(commentsDiv);
 
-                    // Загружаем комментарии для этого поста
                     loadCommentsForPost(postId);
                 });
             })
@@ -183,22 +140,20 @@
                 console.error(err);
             });
 
-        // ---------- ЗАГРУЗКА КОММЕНТАРИЕВ (безопасно) ----------
+        // ---------- ЗАГРУЗКА КОММЕНТАРИЕВ ----------
         function loadCommentsForPost(postId) {
-            fetch(`${BASE_URL}/comments/search/findByPostIdOrderByCreatedAtDesc?postId=${postId}`)
+            fetch(`${BASE_URL}/posts/${postId}/comments`)
                 .then(response => {
                     if (!response.ok) throw new Error('Ошибка загрузки комментариев');
                     return response.json();
                 })
-                .then(data => {
-                    const comments = data._embedded?.comments || [];
+                .then(comments => {
                     const listContainer = document.getElementById(`comments-list-${postId}`);
                     if (!listContainer) return;
 
-                    // Очищаем контейнер
                     listContainer.innerHTML = '';
 
-                    if (comments.length === 0) {
+                    if (!Array.isArray(comments) || comments.length === 0) {
                         listContainer.appendChild(createSafeElement('p', 'Комментариев пока нет.'));
                         return;
                     }
@@ -214,7 +169,7 @@
 
                         const bodyDiv = document.createElement('div');
                         bodyDiv.className = 'comment-body';
-                        bodyDiv.textContent = comment.body; // БЕЗОПАСНО: textContent
+                        bodyDiv.textContent = comment.body; 
                         commentDiv.appendChild(bodyDiv);
 
                         const timeDiv = document.createElement('div');
@@ -240,36 +195,18 @@
             const authorInput = document.getElementById(`author-${postId}`);
             const bodyInput = document.getElementById(`body-${postId}`);
 
-            if (!authorInput || !bodyInput) {
-                alert('Ошибка: поля для ввода не найдены. Обновите страницу.');
-                return;
-            }
+            if (!authorInput || !bodyInput) return;
 
             const author = authorInput.value.trim() || 'Гость';
             const body = bodyInput.value.trim();
 
-            if (!body) {
-                alert('Пожалуйста, введите текст комментария.');
-                return;
-            }
+            if (!body) return alert('Пожалуйста, введите текст комментария.');
+            if (body.length > 1000) return alert('Комментарий слишком длинный (макс. 1000 символов).');
 
-            // Дополнительная клиентская валидация (не заменяет серверную)
-            if (body.length > 1000) {
-                alert('Комментарий слишком длинный (макс. 1000 символов).');
-                return;
-            }
-
-            const commentData = {
-                author: author,
-                body: body,
-                createdAt: new Date().toISOString(),
-                post: `${BASE_URL}/posts/${postId}`
-            };
-
-            fetch(`${BASE_URL}/comments`, {
+            fetch(`${BASE_URL}/posts/${postId}/comments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(commentData)
+                body: JSON.stringify({ author, body })
             })
             .then(response => {
                 if (response.ok) {
@@ -288,10 +225,9 @@
         // ---------- ЗАГРУЗКА ПРОЕКТОВ ----------
         fetch(`${BASE_URL}/projects`)
             .then(response => response.json())
-            .then(data => {
-                const projects = data._embedded?.projects || [];
+            .then(projects => {
                 const container = document.getElementById('projects');
-                if (projects.length === 0) {
+                if (!Array.isArray(projects) || projects.length === 0) {
                     container.appendChild(createSafeElement('p', 'Проектов пока нет.'));
                     return;
                 }
@@ -307,12 +243,12 @@
                     desc.textContent = project.description || '';
                     div.appendChild(desc);
 
-                    if (project.techstack) {
+                    if (project.techStack) {
                         const tech = document.createElement('p');
                         const strong = document.createElement('strong');
                         strong.textContent = 'Технологии: ';
                         tech.appendChild(strong);
-                        tech.append(project.techstack); // textContent автоматически экранирует
+                        tech.append(project.techStack); 
                         div.appendChild(tech);
                     }
 
@@ -336,12 +272,12 @@
             });
 
         // ---------- ЗАГРУЗКА "О СЕБЕ" ----------
-        fetch(`${BASE_URL}/abouts?sort=id,desc&size=1`)
+        fetch(`${BASE_URL}/about`)
             .then(response => response.json())
-            .then(data => {
-                const abouts = data._embedded?.abouts?.[0] || data;
+            .then(abouts => {
                 const container = document.getElementById('abouts');
-                if (!abouts || !abouts.content) {
+                const about = abouts; // Теперь возвращается один объект
+                if (!about || !about.content) {
                     container.appendChild(createSafeElement('p', 'Информация пока не добавлена.'));
                     return;
                 }
@@ -349,25 +285,23 @@
                 const contentDiv = document.createElement('div');
                 contentDiv.className = 'abouts-content';
 
-                if (abouts.title) {
+                if (about.title) {
                     const title = document.createElement('h3');
-                    title.textContent = abouts.title;
+                    title.textContent = about.title;
                     contentDiv.appendChild(title);
                 }
 
                 const content = document.createElement('p');
-                // Заменяем \n на <br> только для отображения переносов, но это безопасно, т.к. текст экранируется через textContent
-                content.textContent = abouts.content || '';
-                // Для переносов можно использовать white-space: pre-wrap в CSS, но здесь оставим как есть
+                content.textContent = about.content || '';
                 contentDiv.appendChild(content);
 
-                if (abouts.techstack) {
+                if (about.techStack) {
                     const tech = document.createElement('p');
                     tech.className = 'techstack';
                     const strong = document.createElement('strong');
                     strong.textContent = 'Технологический стек: ';
                     tech.appendChild(strong);
-                    tech.append(abouts.techstack);
+                    tech.append(about.techStack);
                     contentDiv.appendChild(tech);
                 }
 
@@ -378,7 +312,6 @@
                 console.error(err);
             });
 
-        // ---------- ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК ----------
         function showSection(id) {
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
