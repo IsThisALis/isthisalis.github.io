@@ -203,7 +203,7 @@
             if (!body) return alert('Пожалуйста, введите текст комментария.');
             if (body.length > 1000) return alert('Комментарий слишком длинный (макс. 1000 символов).');
 
-            fetch(`${BASE_URL}/posts/${postId}/comments`, {
+            fetch(`${BASE_URL}/posts/${postId}/comments/add`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ author, body })
