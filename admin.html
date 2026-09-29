@@ -287,7 +287,7 @@
 
             const id = document.getElementById('postId').value;
             const method = id ? 'PATCH' : 'POST';
-            const url = id ? `${BASE_URL}/posts/${id}/edit` : `${BASE_URL}/posts`;
+            const url = id ? `${BASE_URL}/posts/${id}` : `${BASE_URL}/posts`;
 
             secureFetch(url, { method, body: JSON.stringify(formData) })
             .then(response => {
@@ -336,8 +336,7 @@
                 techStack: document.getElementById('aboutTechstack').value || null
             };
 
-            const existingId = document.getElementById('aboutId').value;
-            const method = existingId ? 'PATCH' : 'POST';
+            const method = 'PATCH';
             const url = `${BASE_URL}/about`;
 
             secureFetch(url, { method, body: JSON.stringify(formData) })
@@ -345,8 +344,7 @@
                 if (response.ok) return response.json().catch(() => null);
                 else throw new Error('Ошибка сохранения');
             })
-            .then(data => {
-                if (data && data.id) document.getElementById('aboutId').value = data.id;
+            .then(() => {
                 showMessage('Информация "О себе" обновлена', 'success');
             })
             .catch(showError);

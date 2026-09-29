@@ -89,7 +89,7 @@
                     }
 
                     const small = document.createElement('small');
-                    small.textContent = new Date(post.date).toLocaleString('ru-RU'); // date вместо createdAt
+                    small.textContent = new Date(post.date).toLocaleString('ru-RU');
                     div.appendChild(small);
 
                     container.appendChild(div);
@@ -203,10 +203,10 @@
             if (!body) return alert('Пожалуйста, введите текст комментария.');
             if (body.length > 1000) return alert('Комментарий слишком длинный (макс. 1000 символов).');
 
-            fetch(`${BASE_URL}/posts/${postId}/comments/add`, {
+            fetch(`${BASE_URL}/posts/${postId}/comments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ author, body })
+                body: JSON.stringify({ author, body, createdAt: new Date().toISOString() })
             })
             .then(response => {
                 if (response.ok) {
@@ -274,9 +274,8 @@
         // ---------- ЗАГРУЗКА "О СЕБЕ" ----------
         fetch(`${BASE_URL}/about`)
             .then(response => response.json())
-            .then(abouts => {
+            .then(about => {
                 const container = document.getElementById('abouts');
-                const about = abouts; // Теперь возвращается один объект
                 if (!about || !about.content) {
                     container.appendChild(createSafeElement('p', 'Информация пока не добавлена.'));
                     return;
